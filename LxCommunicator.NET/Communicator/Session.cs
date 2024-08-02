@@ -1,5 +1,8 @@
 ﻿using Newtonsoft.Json;
+using Org.BouncyCastle.Asn1.X509;
+using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.Math;
 using Org.BouncyCastle.OpenSsl;
 using Org.BouncyCastle.Security;
 using System;
@@ -131,9 +134,38 @@ namespace Loxone.Communicator {
 		private string PemToXml(string pem) {
 			return GetXmlRsaKey(pem, obj => {
 				var publicKey = (RsaKeyParameters)obj;
-				return DotNetUtilities.ToRSA(publicKey, new CspParameters { Flags = CspProviderFlags.UseMachineKeyStore });
+				RSAParameters temp = ToRSAParameters(publicKey);
+				var rsa = RSA.Create();
+				rsa.ImportParameters(temp);
+				return rsa;
+				//return DotNetUtilities.ToRSA(publicKey, new CspParameters { Flags = CspProviderFlags.UseMachineKeyStore });
 			}, rsa => rsa.ToXmlString(false));
 
+		}
+
+		public static RSAParameters ToRSAParameters(RsaKeyParameters rsaKey) {
+			RSAParameters rp = new RSAParameters();
+			rp.Modulus = rsaKey.Modulus.ToByteArrayUnsigned();
+			if (rsaKey.IsPrivate)
+				rp.D = ConvertRSAParametersField(rsaKey.Exponent, rp.Modulus.Length);
+			else
+				rp.Exponent = rsaKey.Exponent.ToByteArrayUnsigned();
+			return rp;
+		}
+
+		// TODO Move functionality to more general class
+		private static byte[] ConvertRSAParametersField(BigInteger n, int size) {
+			byte[] bs = n.ToByteArrayUnsigned();
+
+			if (bs.Length == size)
+				return bs;
+
+			if (bs.Length > size)
+				throw new ArgumentException("Specified size too small", "size");
+
+			byte[] padded = new byte[size];
+			Array.Copy(bs, 0, padded, size - bs.Length, bs.Length);
+			return padded;
 		}
 
 		/// <summary>

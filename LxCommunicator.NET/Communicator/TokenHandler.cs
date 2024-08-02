@@ -121,7 +121,8 @@ namespace Loxone.Communicator {
 			string pwHash = Cryptography.GetHexFromByteArray(sha.ComputeHash(Encoding.UTF8.GetBytes($"{Password}:{userKey.Salt}"))).ToUpper();
 			hmacSha.Key = Cryptography.GetByteArrayFromHex(userKey.Key);
 			string hash = Cryptography.GetHexFromByteArray(hmacSha.ComputeHash(Encoding.UTF8.GetBytes($"{Username}:{pwHash}")));
-			Token = (await WsClient.SendWebservice(new WebserviceRequest<Token>($"jdev/sys/getjwt/{hash}/{Username}/{WsClient.Session.TokenPermission}/{WsClient.Session.DeviceUuid}/{WsClient.Session.DeviceInfo}", EncryptionType.RequestAndResponse) { NeedAuthentication = false })).Value;
+			string command = $"jdev/sys/getjwt/{hash}/{Username}/{WsClient.Session.TokenPermission}/{WsClient.Session.DeviceUuid}/{WsClient.Session.DeviceInfo}";
+			Token = (await WsClient.SendWebservice(new WebserviceRequest<Token>(command, EncryptionType.RequestAndResponse) { NeedAuthentication = false })).Value;
 			await RenewTokenOrScheduleIfNeeded();
 			if (Token != null && Token.JsonWebToken != default && Token.Key != default && Token.ValidUntil != default) {
 				return true;
