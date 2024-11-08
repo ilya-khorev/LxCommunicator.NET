@@ -1,6 +1,4 @@
-﻿using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Net.Http;
 using System.Text;
 using System.Threading;
@@ -15,7 +13,8 @@ namespace Loxone.Communicator {
 		/// The httpClient used for sending the messages
 		/// </summary>
 		private HttpClient HttpClient { get; set; }
-
+		private readonly string Scheme;
+		
 		/// <summary>
 		/// Provides info required for the authentication on the miniserver
 		/// </summary>
@@ -35,7 +34,7 @@ namespace Loxone.Communicator {
 		public override async Task<WebserviceResponse> SendWebservice(WebserviceRequest request) {
 			WebserviceRequest encRequest = await GetEncryptedRequest(request);
 			Uri url = new UriBuilder() {
-				Scheme = "http",
+				Scheme = Scheme,
 				Host = IP,
 				Port = Port,
 				Path = encRequest.Command,
@@ -43,8 +42,8 @@ namespace Loxone.Communicator {
 			}.Uri;
 			CancellationTokenSource?.Dispose();
 			CancellationTokenSource = new CancellationTokenSource(request.Timeout);
-			HttpResponseMessage httpResponse = await HttpClient?.GetAsync(url.OriginalString, CancellationTokenSource.Token);
-			byte[] responseContent = await httpResponse?.Content.ReadAsByteArrayAsync();
+			HttpResponseMessage httpResponse = await HttpClient.GetAsync(url.OriginalString, CancellationTokenSource.Token);
+			byte[] responseContent = await httpResponse.Content.ReadAsByteArrayAsync();
 			CancellationTokenSource?.Dispose();
 			if (httpResponse.IsSuccessStatusCode && request.Encryption == EncryptionType.RequestAndResponse) {//decypt response if needed
 				responseContent = Encoding.UTF8.GetBytes(Cryptography.AesDecrypt(Encoding.UTF8.GetString(responseContent), Session));
@@ -102,11 +101,13 @@ namespace Loxone.Communicator {
 		/// <param name="permissions">Permissions of the connecting user</param>
 		/// <param name="deviceUuid">Uuid of the connecting device</param>
 		/// <param name="deviceInfo">Info of the connecting device</param>
-		public HttpWebserviceClient(string ip, int port, int permissions, string deviceUuid, string deviceInfo) {
+		/// <param name="useHttps"></param>
+		public HttpWebserviceClient(string ip, int port, int permissions, string deviceUuid, string deviceInfo, bool useHttps = false) {
 			IP = ip;
 			Port = port;
 			HttpClient = new HttpClient();
 			Session = new Session(this, permissions, deviceUuid, deviceInfo);
+			Scheme = useHttps ? "https" : "http";
 		}
 
 		/// <summary>
@@ -115,13 +116,15 @@ namespace Loxone.Communicator {
 		/// <param name="ip">IP adress of the miniserver</param>
 		/// <param name="port">Port of the miniserver</param>
 		/// <param name="session">Session object containing info used for connection</param>
-		public HttpWebserviceClient(string ip, int port, Session session) {
+		/// <param name="useHttps"></param>
+		public HttpWebserviceClient(string ip, int port, Session session, bool useHttps = false) {
 			IP = ip;
 			Port = port;
 			HttpClient = new HttpClient();
 			Session = session;
+			Scheme = useHttps ? "https" : "http";
 		}
-
+		
 		/// <summary>
 		/// Disposes the WebserviceClient
 		/// </summary>
@@ -130,6 +133,5 @@ namespace Loxone.Communicator {
 			HttpClient?.Dispose();
 			CancellationTokenSource?.Dispose();
 		}
-
 	}
 }

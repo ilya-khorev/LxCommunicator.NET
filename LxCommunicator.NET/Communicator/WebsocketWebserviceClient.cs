@@ -25,6 +25,8 @@ namespace Loxone.Communicator {
 		/// </summary>
 		private ClientWebSocket WebSocket;
 
+		private string Scheme;
+		
 		/// <summary>
 		/// A Listener to catch every incoming message from the miniserver
 		/// </summary>
@@ -66,12 +68,13 @@ namespace Loxone.Communicator {
 		/// <param name="permissions">The permissions the user should have on the server</param>
 		/// <param name="deviceUuid">The uuid of the current device</param>
 		/// <param name="deviceInfo">A short info of the current device</param>
-		public WebsocketWebserviceClient(string ip, int port, int permissions, string deviceUuid, string deviceInfo) {
+		public WebsocketWebserviceClient(string ip, int port, int permissions, string deviceUuid, string deviceInfo, bool useHttps = false) {
 			IP = ip;
 			Port = port;
 			Session = new Session(null, permissions, deviceUuid, deviceInfo);
-			HttpClient = new HttpWebserviceClient(IP, Port, Session);
+			HttpClient = new HttpWebserviceClient(IP, Port, Session, useHttps);
 			Session.Client = HttpClient;
+			Scheme = useHttps ? "wss" : "ws";
 		}
 
 		/// <summary>
@@ -82,7 +85,7 @@ namespace Loxone.Communicator {
 		public override async Task Authenticate(TokenHandler handler) {
 			if (await MiniserverReachable()) {
 				WebSocket = new ClientWebSocket();
-				await WebSocket.ConnectAsync(new Uri($"ws://{IP}:{Port}/ws/rfc6455"), CancellationToken.None);
+				await WebSocket.ConnectAsync(new Uri($"{Scheme}://{IP}:{Port}/ws/rfc6455"), CancellationToken.None);
 				BeginListening();
 				string key = await Session.GetSessionKey();
 				string keyExchangeResponse = (await SendWebservice(new WebserviceRequest<string>($"jdev/sys/keyexchange/{key}", EncryptionType.None))).Value;
